@@ -1,8 +1,32 @@
+#include <RCSwitch.h>
+#include "lib.h"
+
+char buffer[BUFFER_SIZE];
+RCSwitch capture = RCSwitch();
+
 void signal() {
   digitalWrite(STATUS_LED, HIGH);
   delay(350);
   digitalWrite(STATUS_LED, LOW);
   delay(350);
+}
+
+void receiver_handle() {
+  if (capture.available()) {
+    signal();
+    const char* binCode = dec2binWzerofill(capture.getReceivedValue(), capture.getReceivedBitlength());
+    capture.resetAvailable();
+    const char* triState = bin2tristate(binCode);
+    char code[CODE + 1], channel[CHN + 1];
+    strncpy(code, triState, CODE);
+    code[CODE] = '\0';
+    strncpy(channel, triState + 8, CHN);
+    channel[CHN] = '\0';
+    snprintf(buffer, BUFFER_SIZE, "Received code: %s - Channel: %s", code, channel);
+    display_msg(buffer);
+    detachReset();
+    attachReset(8);
+  }
 }
 
 static const char* bin2tristate(const char* bin) {

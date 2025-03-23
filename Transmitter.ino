@@ -1,10 +1,12 @@
 #include <Ticker.h>
+#include <RCSwitch.h>
 #include "lib.h"
 
-volatile bool buttonState[BUTTON_COUNT] = {false, false, false, false, false};
-volatile unsigned long lastDebounce[BUTTON_COUNT] = {0, 0, 0, 0, 0};
+volatile bool buttonState[BUTTON_COUNT] = {false, false, false, false, false, false};
+volatile unsigned long lastDebounce[BUTTON_COUNT] = {0, 0, 0, 0, 0, 0};
 
 Ticker failsafe;
+RCSwitch remote = RCSwitch();
 
 const char* locked_prompt = "Door Locked. Unlock to continue!";
 
@@ -18,7 +20,6 @@ void IRAM_ATTR handleButtonPressPullup(int idx) {
     buttonState[idx] = !digitalRead(buttonPins[idx]);
     lastDebounce[idx] = now;
   }
-  if (idx == 3 && now - lastDebounce[2] < 20) toggle_recv_trans = true;
 }
 
 void IRAM_ATTR handleButtonPressPulldown(int idx) {
@@ -27,20 +28,22 @@ void IRAM_ATTR handleButtonPressPulldown(int idx) {
     buttonState[idx] = digitalRead(buttonPins[idx]);
     lastDebounce[idx] = now;
   }
-  if (idx == 2 && now - lastDebounce[3] < 20) toggle_recv_trans = true;
+}
+
+void IRAM_ATTR handleButton(int idx) {
+  const unsigned long now = millis();
+  if (now - lastDebounce[idx] > DEBOUNCE_DELAY) {
+    buttonState[idx] = true;
+    lastDebounce[idx] = now;
+  } 
 }
 
 void IRAM_ATTR handleLockButton() { handleButtonPressPullup(0); }
 void IRAM_ATTR handleHaltButton() { handleButtonPressPulldown(1); }
 void IRAM_ATTR handleDownButton() { handleButtonPressPulldown(2); }
 void IRAM_ATTR handleUpButton() { handleButtonPressPullup(3); }
-void IRAM_ATTR handleFnButton() { 
-  const unsigned long now = millis();
-  if (now - lastDebounce[4] > DEBOUNCE_DELAY) {
-    buttonState[4] = !previousFlash;
-    lastDebounce[4] = now;
-  } 
-}
+void IRAM_ATTR handleMenuButton() { handleButton(4); }
+void IRAM_ATTR handleFnButton() { handleButton(5); }
 
 void handleLock() { 
   locked = 1;
@@ -105,11 +108,10 @@ void handleUp() {
   dots = (dots + 1) % MAX_ANIMATION;
 }
   // Function pointer type for ISRs
-ISRFunction buttonISRs[BUTTON_COUNT] = {handleLockButton, handleHaltButton, handleDownButton, handleUpButton, handleFnButton};
+ISRFunction buttonISRs[BUTTON_COUNT] = {handleLockButton, handleHaltButton, handleDownButton, handleUpButton, handleMenuButton, handleFnButton};
 ISRFunction handle[TRANS_COUNT] = {handleLock, handleHalt, handleDown, handleUp};
 
 void transmitter_handle() {
-  if (toggle_recv_trans) return;
   for (int i = 0; i < TRANS_COUNT; i++) {
     if (buttonState[i]) {
       detachReset();
