@@ -2,13 +2,15 @@
 #define LIB_H
 
 #include <Ticker.h>
+#include <RCSwitch.h>
 
 #define TRANS_PIN 14
 #define RECV_PIN 12
 
-#define BUTTON_COUNT 5
+#define BUTTON_COUNT 6
 #define TRANS_COUNT 4
-#define DEBOUNCE_DELAY 35
+#define DEBOUNCE_DELAY 30
+#define DOUBLE_TIMEOUT 400
 #define STATUS_LED 16
 #define MAX_ANIMATION 4
 
@@ -17,13 +19,24 @@
 
 #define BUFFER_SIZE 256
 
-extern Ticker reset;
+#define OPTIONS 3
+#define OPTION_START_X 5
+#define OPTION_START_Y 29
 
-bool transmit = true;
+extern Ticker reset, failsafe;
 
-volatile bool previousFlash = false;
+extern RCSwitch remote, capture;
 
-volatile bool toggle_recv_trans = false;
+typedef enum {
+  TRANSMIT = 0,
+  RECEIVE = 1,
+  SETTING = 2,
+  MENU = 3,
+} Mode;
+
+Mode mode = MENU;
+
+volatile bool scnd_press = false;
 
 volatile bool reset_OLED = false;
 
@@ -33,11 +46,15 @@ typedef void (*ISRFunction)();
 
 extern ISRFunction buttonISRs[BUTTON_COUNT], handle[TRANS_COUNT];
 
-static int buttonPins[BUTTON_COUNT] = {2, 15, 13, 0, 10};
+static int buttonPins[BUTTON_COUNT] = {2, 15, 13, 0, 3, 10};
 extern volatile bool buttonState[BUTTON_COUNT];
 extern volatile unsigned long lastDebounce[BUTTON_COUNT];
+extern volatile bool tranceiverInit[2];
 
 void attachReset();
 void detachReset();
+
+int st = 0, prev_st = st;
+static String options[] = {"RF Remote", "RF Receiver", "Settings"};
 
 #endif
