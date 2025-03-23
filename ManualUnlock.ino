@@ -59,13 +59,37 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if (buttonState[5] && mode == MENU) {
-    if (st == 0 || st == 1) tranceiverInit[st] = true;
-    delay(150);
-    mode = resolve_mode(st);
-    st = -1;
-    prev_st = st;
+  if (lastDebounce[5] > 0) {
+    if (digitalRead(buttonPins[5]) == LOW) {
+        if (!longPress && (millis() - lastDebounce[5] > LONG_PRESS)) {
+          longPress = true;
+          led_state = !led_state;
+          digitalWrite(STATUS_LED, led_state);
+          delay(50);
+        }
+    } else {
+      if (!longPress && millis() - lastDebounce[5] > DEBOUNCE_DELAY) {
+        lastDebounce[5] = 0;
+        buttonState[5] = true;
+        delay(100);
+      }
+    }
+  }
+
+  if (buttonState[5]) {
+    if (mode == MENU) {
+      if (st == 0 || st == 1) tranceiverInit[st] = true;
+      delay(100);
+      mode = resolve_mode(st);
+      st = -1;
+      prev_st = st;
+    }
     buttonState[5] = false;
+  }
+
+  if (led_state) {
+    digitalWrite(STATUS_LED, HIGH);
+    delay(20);
   }
 
   if (buttonState[4]) {
@@ -75,7 +99,7 @@ void loop() {
       prev_st = st;
       mode = MENU;
       main_menu(st);
-      delay(250);
+      delay(150);
     }
     else {
       st = (st + 1) % OPTIONS;

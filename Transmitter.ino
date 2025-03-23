@@ -43,7 +43,13 @@ void IRAM_ATTR handleHaltButton() { handleButtonPressPulldown(1); }
 void IRAM_ATTR handleDownButton() { handleButtonPressPulldown(2); }
 void IRAM_ATTR handleUpButton() { handleButtonPressPullup(3); }
 void IRAM_ATTR handleMenuButton() { handleButton(4); }
-void IRAM_ATTR handleFnButton() { handleButton(5); }
+void IRAM_ATTR handleFnButton() { 
+  const unsigned long now = millis();
+  if (now - lastDebounce[5] < DEBOUNCE_DELAY) return;
+  
+  lastDebounce[5] = now;
+  longPress = false;
+}
 
 void handleLock() { 
   locked = 1;
@@ -119,6 +125,8 @@ void transmitter_handle() {
       digitalWrite(STATUS_LED, HIGH);
       handle[i]();
       attachReset(5.0);
-    } else digitalWrite(STATUS_LED, LOW);
+      digitalWrite(STATUS_LED, LOW);
+      delay(150);
+    } 
   }
 }

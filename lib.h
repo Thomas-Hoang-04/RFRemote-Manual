@@ -10,7 +10,7 @@
 #define BUTTON_COUNT 6
 #define TRANS_COUNT 4
 #define DEBOUNCE_DELAY 30
-#define DOUBLE_TIMEOUT 400
+#define LONG_PRESS 400
 #define STATUS_LED 16
 #define MAX_ANIMATION 4
 
@@ -39,6 +39,10 @@ Mode mode = MENU;
 volatile bool scnd_press = false;
 
 volatile bool reset_OLED = false;
+
+int led_state = 0;
+volatile unsigned long pressStart = 0;
+volatile bool longPress = false;
 
 int dots = 0;
 
