@@ -12,8 +12,6 @@
 Adafruit_SSD1306 display(WIDTH, HEIGHT, &Wire, OLED_RST);
 
 void OLED_Setup() {
-  // put your setup code here, to run once:
-  Serial.begin(115200);
   Wire.begin(SDA, SCL);
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("OLED allocation failed"));
@@ -21,7 +19,9 @@ void OLED_Setup() {
   }
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  default_msg();
+  st = 0;
+  prev_st = st;
+  main_menu(st);
 }
 
 void reset_display() {
@@ -52,7 +52,7 @@ void display_cont_msg(const char* msg, const char* indi, int time) {
 }
 
 void default_msg() {
-  const char* msg = transmit ? "RF Remote is active!" : "RF Receiver is active";
+  const char* msg = mode == TRANSMIT ? "RF Remote is active!" : "RF Receiver is active";
   display.clearDisplay();
   display.setCursor(0, 10);
   display.println("Hello, Thomas!");
@@ -61,22 +61,24 @@ void default_msg() {
   display.display();
 }
 
-void menu_1() {
+void main_menu(int selected) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0, 0);
+  display.setCursor(0, 8);
   display.println("Hello, Thomas!");
   display.println("Select a function");
-  display.fillRect(0, 18, 128, 12, WHITE);
-  display.setTextColor(BLACK);
-  display.setCursor(5, 21);
-  display.println("RF Remote");
-  display.setTextColor(WHITE);
-  display.setCursor(5, 34);
-  display.println("RF Receiver");
-  display.setCursor(5, 47);
-  display.println("Settings");
+  menu_state(selected);
   display.display();
+}
+
+void menu_state(int selected) {
+  for (int i = 0; i < OPTIONS; i++) {
+    int y = OPTION_START_Y + 13 * i;
+    if (i == selected) display.fillRect(0, y - 3, 128, 12, WHITE);
+    display.setCursor(OPTION_START_X, y);
+    display.setTextColor(i == selected ? BLACK : WHITE);
+    display.println(options[i]);
+  }
 }
 
