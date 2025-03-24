@@ -1,7 +1,20 @@
 #include "lib.h"
 
+/** 
+The code in this repository is tailored exclusive for ESP8266. 
+Can be configure for other platform but must meet certain requirement
+- The platform has at least 11 usable GPIO pins (6-button variant) or 9 usable GPIO pins (4-button variant)
+- At least 6 pin support Hardware Interrupt (For Arduino Uno, switch to polling configuration)
+- One I2C channel (For the OLED display)
+*/
+
+/** 
+  Store entrance state for RF Transmitter and RF Receiver mode
+  These states will prevent constant reloading of OLED display on each loop
+*/
 volatile bool tranceiverInit[2] = {false, false};
 
+// Deduce the operation mode from the indexes of the menu options
 Mode resolve_mode(int st) {
   Mode selected = MENU;
   switch (st) {
@@ -20,6 +33,7 @@ Mode resolve_mode(int st) {
   return selected;
 }
 
+// Deduce the highlighted options in Menu mode based on current operation mode
 int resolve_opt(Mode mode) {
   int selected = -1;
   switch (mode) {
@@ -40,25 +54,31 @@ int resolve_opt(Mode mode) {
 }
 
 void setup() {
-  Serial.end(); // Activate Serial Terminal
+  // Disable Serial debugging
+  // Required for 6-button variant (GPIO3 - UART0 RX pin is used for Menu)
+  Serial.end(); 
 
-  pinMode(STATUS_LED, OUTPUT); // Define status LED pin out
+  pinMode(STATUS_LED, OUTPUT); // Set GPIO16 as pin out for status LED
 
+  // Input and Interrupt trigger for the button pins
   for (int i = 0; i < BUTTON_COUNT; i++) {
     pinMode(buttonPins[i], INPUT);
     attachInterrupt(digitalPinToInterrupt(buttonPins[i]), buttonISRs[i], i < 4 ? CHANGE : FALLING);
   }
 
+  // rc-switch options for RF transmit
   remote.enableTransmit(TRANS_PIN);
-  remote.setProtocol(1);
-  remote.setPulseLength(320);
+  remote.setProtocol(PROTOCOL);
+  remote.setPulseLength(PULSE_LENGTH);
 
+  // rc-switch options for RF receive
   capture.enableReceive(RECV_PIN);
+
   OLED_Setup();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  // Handle Fn button trigger (Dual mode: Single Press and Long Press (400ms window))
   if (lastDebounce[5] > 0) {
     if (digitalRead(buttonPins[5]) == LOW) {
         if (!longPress && (millis() - lastDebounce[5] > LONG_PRESS)) {
@@ -76,47 +96,56 @@ void loop() {
     }
   }
 
+  // Handle Fn button event for Single Press mode (Only in Menu)
+  // In Menu, pressing Fn button will bring the tranceiver to the selected mode
   if (buttonState[5]) {
     if (mode == MENU) {
-      if (st == 0 || st == 1) tranceiverInit[st] = true;
-      delay(100);
-      mode = resolve_mode(st);
-      st = -1;
+      if (st == 0 || st == 1) tranceiverInit[st] = true; // Set up initial state for Transmit and Receive mode
+      delay(100); // Avoid OLED refresh flickering
+      mode = resolve_mode(st); 
+      st = -1; // Reset menu option
       prev_st = st;
     }
-    buttonState[5] = false;
+    buttonState[5] = false; // Reset state
   }
 
+  // Set up control for flashlight mode
   if (led_state) {
     digitalWrite(STATUS_LED, HIGH);
     delay(20);
   }
 
+  // Handle Menu button event
   if (buttonState[4]) {
+    // Enter Menu mode if not in Menu
     if (mode != MENU) {
-      detachReset();
+      detachReset(); // Disable interrupt-based OLED refresh
       st = resolve_opt(mode);
       prev_st = st;
       mode = MENU;
       main_menu(st);
-      delay(150);
+      delay(150);  // Avoid OLED refresh flickering
     }
     else {
+      // Cycle through menu options
       st = (st + 1) % OPTIONS;
       main_menu(st);
     }
-    buttonState[4] = false;
+    buttonState[4] = false; // Reset state
   }
 
-  if (reset_OLED) reset_display();
+  if (reset_OLED) reset_display(); // Trigger OLED display refresh based on scheduled task
 
+  // Handle Transmit mode
   if (mode == TRANSMIT) {
+    // Handle initial state to avoid constant OLED display refresh during operation
     if (tranceiverInit[0]) {
       default_msg();
       tranceiverInit[0] = false;
     }
     transmitter_handle();
   }
+  // Handle Receive mode
   else if (mode == RECEIVE) {
     if (tranceiverInit[1]) {
       default_msg();
@@ -125,6 +154,7 @@ void loop() {
     receiver_handle();
   }
   else if (mode == SETTING) {}
+  // Handle Menu mode
   else if (mode == MENU) {
     if (prev_st != st) {
       main_menu(st);

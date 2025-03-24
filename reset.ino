@@ -1,8 +1,9 @@
 #include "lib.h"
 #include <Ticker.h>
 
+// OLED refresh scheduler object
 Ticker reset;
 
-void attachReset(float time) { reset.attach(time, reset_status); }
+void attachReset(float time) { reset.attach(time, reset_status); } // Schedule OLED display refresh
 
-void detachReset() { reset.detach(); }
+void detachReset() { reset.detach(); } // Disable OLED display refresh task
