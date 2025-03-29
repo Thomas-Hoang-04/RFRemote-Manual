@@ -34,16 +34,30 @@ extern ISRFunction buttonISRs[BUTTON_COUNT], handle[TRANS_COUNT];
 #define MAX_ANIMATION 4 // For messages with animation in Transmit mode
 int dots = 0; // Animation flag
 
-/* RF Transmitter config */
-#define PROTOCOL 1
-#define PULSE_LENGTH 320
-/* End RF Transmitter config */
-
 /* RF Receiver config */
 #define BUFFER_SIZE 256 // Output message buffer size
 #define CODE 8 // Length of captured code (tri-state)
 #define CHN 4 // Max number of channels
 /* End RF Receiver config */
+
+/* RF Transmitter config */
+#define PROTOCOL 1
+#define PULSE_LENGTH 320
+#define TARGET "/code.txt"
+
+static const char* org_code = "FFFFFFFF";
+static const bool dual_chn = false;
+char curr_code[CODE + 1];
+bool curr_chn = false, chn_sel = false;
+static const char* quad_channels[CHN] = {"0001", "0010", "0100", "1000"}; 
+static const char* dual_channels[CHN / 2] = {"01", "10"}; 
+extern char* code[CHN];
+
+// Default status for Transmit mode
+int opening = 0;
+int closing = 0;
+int locked = 0;
+/* End RF Transmitter config */
 
 /* Menu config */
 #define OPTIONS 3 // Number of menu options
@@ -62,8 +76,20 @@ Mode mode = MENU;
 
 // Menu options tracking
 int st = 0, prev_st = st;
-static String options[] = {"RF Remote", "RF Receiver", "Settings"};
+static const char* options[] = {"RF Remote", "RF Receiver", "Settings"};
 /* End menu config */
+
+// Settings options tracking
+#define NUM_X_START 15
+#define NUM_Y_START 25
+#define SPACE 3
+#define BOX_WIDTH 9
+#define BOX_HEIGHT 2
+#define CHAR_HEIGHT 17
+
+int st_opt = 0;
+extern ISRFunction setting_handle[BUTTON_COUNT];
+/* End Settings menu config */
 
 // Ticker object for periodic task scheduling
 extern Ticker reset, failsafe;

@@ -74,6 +74,7 @@ void setup() {
   // rc-switch options for RF receive
   capture.enableReceive(RECV_PIN);
 
+  setup_broadcast_code();
   OLED_Setup();
 }
 
@@ -98,7 +99,7 @@ void loop() {
 
   // Handle Fn button event for Single Press mode (Only in Menu)
   // In Menu, pressing Fn button will bring the tranceiver to the selected mode
-  if (buttonState[5]) {
+  if (buttonState[5] && mode != SETTING) {
     if (mode == MENU) {
       if (st == 0 || st == 1) tranceiverInit[st] = true; // Set up initial state for Transmit and Receive mode
       delay(100); // Avoid OLED refresh flickering
@@ -116,7 +117,7 @@ void loop() {
   }
 
   // Handle Menu button event
-  if (buttonState[4]) {
+  if (buttonState[4] && mode != SETTING) {
     // Enter Menu mode if not in Menu
     if (mode != MENU) {
       detachReset(); // Disable interrupt-based OLED refresh
@@ -153,7 +154,13 @@ void loop() {
     }
     receiver_handle();
   }
-  else if (mode == SETTING) {}
+  else if (mode == SETTING) {
+    setting_menu(st_opt);
+    if (!chn_sel) cursor(st_opt);
+    else chn_cursor();
+    settings_handler();
+    delay(25);
+  }
   // Handle Menu mode
   else if (mode == MENU) {
     if (prev_st != st) {

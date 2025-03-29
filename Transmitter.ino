@@ -11,24 +11,21 @@ RCSwitch remote = RCSwitch();
 
 const char* locked_prompt = "Door Locked. Unlock to continue!";
 
-// Default status for Transmit mode
-int opening = 0;
-int closing = 0;
-int locked = 1;
-
 // For button on GPIO0 and GPIO2 (require HIGH on startup)
 void IRAM_ATTR handleButtonPressPullup(int idx) {
   const unsigned long now = millis();
+  bool state = mode == SETTING ? true : !digitalRead(buttonPins[idx]);
   if (now - lastDebounce[idx] > DEBOUNCE_DELAY) {
-    buttonState[idx] = !digitalRead(buttonPins[idx]);
+    buttonState[idx] = state;
     lastDebounce[idx] = now;
   }
 }
 
 void IRAM_ATTR handleButtonPressPulldown(int idx) {
   const unsigned long now = millis();
+  bool state = mode == SETTING ? true : digitalRead(buttonPins[idx]);
   if (now - lastDebounce[idx] > DEBOUNCE_DELAY) {
-    buttonState[idx] = digitalRead(buttonPins[idx]);
+    buttonState[idx] = state;
     lastDebounce[idx] = now;
   }
 }
@@ -62,7 +59,7 @@ void handleLock() {
   closing = 0;
   failsafe.detach(); // Disable refresh-to-default task
   display_msg("Door Locked!");
-  remote.sendTriState("110110FF0010"); // Lock
+  remote.sendTriState(code[1]); // Lock
 }
 
 void handleHalt() { 
@@ -72,7 +69,7 @@ void handleHalt() {
   closing = 0;
   failsafe.detach(); // Disable refresh-to-default task
   display_msg(msg);
-  remote.sendTriState("110110FF0100"); // Stop
+  remote.sendTriState(code[2]); // Stop
 }
 
 void handleDown() { 
@@ -81,19 +78,20 @@ void handleDown() {
     return;
   }
 
-  if (opening) {
+  if (opening && !curr_chn) {
     display_msg("Door is opening. Halt to continue!");
     return;
   }
 
-  if (!closing) {
+  if (!closing && !curr_chn) {
     failsafe.detach(); // Reset refresh-to-default task
     failsafe.attach(10.0,  []() { closing = 0; }); // Task to automatically reset target status
     dots = 0;
   }
-  closing = 1;
-  remote.sendTriState("110110FF1000"); // Down
-  display_cont_msg("Door Closing", ".", dots);
+  const char* prompt = curr_chn ? "Channel 1" : "Door Closing";
+  if (!curr_chn) closing = 1;
+  remote.sendTriState(curr_chn ? code[1] : code[3]); // Down
+  display_cont_msg(prompt, ".", dots);
   dots = (dots + 1) % MAX_ANIMATION;
 }
 
@@ -103,19 +101,20 @@ void handleUp() {
     return;
   }
 
-  if (closing) {
+  if (closing && !curr_chn) {
     display_msg("Door is closing. Halt to continue!");
     return;
   }
 
-  if (!opening) {
+  if (!opening && !curr_chn) {
     failsafe.detach(); // Reset refresh-to-default task
     failsafe.attach(10.0,  []() { opening = 0; }); // Task to automatically reset target status
     dots = 0;
   }
-  opening = 1;
-  remote.sendTriState("110110FF0001"); // Up
-  display_cont_msg("Door Opening", ".", dots);
+  const char* prompt = curr_chn ? "Channel 0" : "Door Opening";
+  if (!curr_chn) opening = 1;
+  remote.sendTriState(code[0]); // Up
+  display_cont_msg(prompt, ".", dots);
   dots = (dots + 1) % MAX_ANIMATION;
 }
 
@@ -127,6 +126,7 @@ ISRFunction handle[TRANS_COUNT] = {handleLock, handleHalt, handleDown, handleUp}
 
 void transmitter_handle() {
   for (int i = 0; i < TRANS_COUNT; i++) {
+    if (curr_chn && i < 2) continue;
     if (buttonState[i]) {
       // Disable OLED refresh
       detachReset();
