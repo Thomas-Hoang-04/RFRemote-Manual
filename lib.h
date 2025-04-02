@@ -10,7 +10,7 @@
 #include <RCSwitch.h>
 
 /* RF Transceiver config */
-#define TRANS_PIN 14 // RF Transmitter - GPIO14 (D5 on NodeMCU)
+#define TRANS_PIN 16 // RF Transmitter - GPIO14 (D5 on NodeMCU) (Switch to GPIO16 due to shorted GPIO14)
 #define RECV_PIN 12 // RF Receiver - GPIO12 (D6 on NodeMCU)
 /* End RF Transceiver config */
 
@@ -29,7 +29,9 @@ typedef void (*ISRFunction)();
 extern ISRFunction buttonISRs[BUTTON_COUNT], handle[TRANS_COUNT];
 /* End buttons config */
 
-#define STATUS_LED 16 // Status LED - GPIO16 (D0 on NodeMCU)
+// Due to overvoltage and shorted GPIO14, status LED output is reassigned to GPIO1 (TX)
+// Be cautious to use this pin as it is only suitable for output (Serial logging must be disable)
+#define STATUS_LED 1 // Status LED - GPIO16 (D0 on NodeMCU)
 
 #define MAX_ANIMATION 4 // For messages with animation in Transmit mode
 int dots = 0; // Animation flag
